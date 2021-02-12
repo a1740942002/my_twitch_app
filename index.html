@@ -5,10 +5,83 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/style.css">
-  <title>Twitch</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <title>My Twitch App</title>
 </head>
-<body>
-  
+<body class="bg-gray-900 text-white">
 
+  <main>
+    <section class="py-4 my-16">
+      <div class="w-10/12 md:w-10/12 mx-auto container">
+        <h1 class="text-center text-5xl mb-8 md:mb-0">My Twitch App</h1>
+        <div id="streams" class="row space-y-16 md:space-y-12 md:flex md:flex-wrap">
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// UI
+const streams = document.querySelector('#streams');
+
+
+// API
+const twitch = 'https://www.twitch.tv/';
+const api = 'https://api.twitch.tv/helix/streams';
+const query = '?language=zh';
+const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc';
+const appToken = '35spin2autlycym825e63wr6990lzs';
+const endPoint = api + query;
+
+  axios({
+    method: 'get',
+    url: endPoint,
+    headers:{
+      Authorization: 'Bearer ' + appToken,
+      'Client-Id':  clientID
+    }
+  })
+  .then(function (response) {
+    const streamsData = response.data.data;
+    console.log(streamsData);
+
+    streamsData.forEach( streamData =>{
+      const div = document.createElement('div');
+      div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
+      const thumbnaillURL = streamData.thumbnail_url.replace('{width}x{height}', '640x360');
+      const html = `
+      <a href="${ twitch + streamData.user_login}" target="_blank">
+        <div class="row">
+          <img class="rounded" src="${thumbnaillURL}" alt="">
+        </div>
+        <div class="flex row rounded items-center space-x-4 bg-gray-800 p-4">
+          <div class="col">
+            <img class="w-20 md:w-16 rounded-full" src="https://via.placeholder.com/150x150.png" alt="">
+          </div>
+          <div class="space-y-2 col w-full">
+            <p class="text-2xl md:text-lg text-gray-100">${streamData.title}</p>
+            <div class="text-2xl md:text-lg text-gray-100 flex justify-between">
+              <span class="hover:text-gray-300">${streamData.user_name}</span> 
+              <span class="">
+                <svg class="h-6 w-6 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                </svg>
+                ${streamData.viewer_count}
+              </span>
+            </div>
+          </div>
+        </div>
+      </a>
+      `
+      div.innerHTML = html;
+      streams.appendChild(div);
+    })
+  })
+  .catch(function (error) {
+    console.log(error);
+  });
+
+</script>
 </body>
 </html>
