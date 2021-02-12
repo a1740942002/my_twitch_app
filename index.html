@@ -13,7 +13,33 @@
   <main>
     <section class="py-4 my-16">
       <div class="w-10/12 md:w-10/12 mx-auto container">
-        <h1 class="font-bold text-center text-5xl mb-8 md:mb-0">My Twitch App</h1>
+        <h1 class="font-bold text-center text-3xl md:text-5xl mb-4">My Twitch App</h1>
+        
+        <div class="mx-auto w-6/12 mb-8 md:mb-0">
+          <div class="flex">
+            <div class="w-full">
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 flex items-center">
+                  <label for="select" class="sr-only"></label>
+                  <select id="select" class="focus:ring-indigo-500 focus:border-indigo-500 h-full py-0 pl-3 pr-7 border-transparent bg-transparent text-gray-500 sm:text-sm rounded-md">
+                    <option>語言</option>
+                    <option>遊戲 ID</option>
+                    <option>使用者 ID</option>
+                  </select>
+                </div>
+                <input id="input" type="text" name="phone_number" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-28 sm:text-sm border-gray-300 rounded-md text-gray-700" placeholder="請輸入您的資料...">
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <svg class="mr-1 w-5 h-5 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <button class="tag bg-gray-500 rounded px-2 py-1">英雄聯盟</button>
+            <button class="tag bg-gray-500 rounded px-2 py-1">中文</button>
+            <button class="tag bg-gray-500 rounded px-2 py-1">其它</button>
+          </div>
+        </div>
         <div id="streams" class="row space-y-16 md:space-y-12 md:flex md:flex-wrap">
         </div>
       </div>
@@ -23,19 +49,59 @@
 <script>
 // UI
 const streams = document.querySelector('#streams');
+const input = document.querySelector('#input');
+const search = document.querySelector('#search');
+const tags = document.querySelectorAll('.tag');
+const select = document.querySelector('#select');
+const query = {};
+let queryString = '';
+
+
+input.addEventListener('keyup', function(e){
+  query.key = this.value;
+});
+
+
+Object.defineProperty(query, 'key',{
+  get: function(){
+    return key;
+  },
+  set: function(value){
+    key = value;
+
+    switch(select.options.selectedIndex){
+      case 0:
+        queryString = '?language=' + value;
+        break;
+
+      case 1:
+        queryString = '?game_id=' + value;
+        break;
+
+      case 2:
+        queryString = '?user_id=' + value;
+        break;
+        
+      default:
+        queryString = '';
+        break;
+    }
+    if(!value) queryString = '';
+    ajax(queryString);
+  }
+});
 
 
 // API
 const twitch = 'https://www.twitch.tv/';
 const api = 'https://api.twitch.tv/helix/streams';
-const query = '?language=zh';
-const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc';
-const appToken = '35spin2autlycym825e63wr6990lzs';
-const endPoint = api + query;
+const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
+const appToken = '35spin2autlycym825e63wr6990lzs'; // 註冊之後發 POST 取得 app access token
 
+function ajax(queryString){
   axios({
     method: 'get',
-    url: endPoint,
+    url: api + queryString,
     headers:{
       Authorization: 'Bearer ' + appToken,
       'Client-Id':  clientID
@@ -44,8 +110,10 @@ const endPoint = api + query;
   .then(function (response) {
     const streamsData = response.data.data;
     console.log(streamsData);
+    streams.innerHTML = '';
 
     streamsData.forEach( streamData =>{
+
       const div = document.createElement('div');
       div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
       const thumbnaillURL = streamData.thumbnail_url.replace('{width}x{height}', '640x360');
@@ -81,6 +149,9 @@ const endPoint = api + query;
   .catch(function (error) {
     console.log(error);
   });
+}
+
+ajax(queryString);
 
 </script>
 </body>
