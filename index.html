@@ -5,7 +5,6 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <title>My Twitch App</title>
 </head>
 <body class="bg-gray-900 text-white">
@@ -42,15 +41,29 @@
         </div>
         <div id="streams" class="row space-y-16 md:space-y-12 md:flex md:flex-wrap">
         </div>
+        <div id="loading" class="mt-8 text-center hidden">
+          <button type="button" class="bg-indigo-600 rounded pl-2 pr-4 py-1" disabled>
+            <svg class="inline-block animate-spin h-5 w-5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+            載入中...
+          </button>
+        </div>
       </div>
     </section>
   </main>
-
 <script>
+
 // Global Variable
 const input = document.querySelector('#input');
+const container = document.querySelector('#streams');
 const tags = document.querySelectorAll('.tag');
+const loading = document.querySelector('#loading');
 const state = {};
+const pages = [];
+let idx = 0;
+
+initStreams();
 
 // 監聽輸入 input 事件
 input.addEventListener('keyup', function(e){
@@ -61,46 +74,78 @@ input.addEventListener('keyup', function(e){
 tags.forEach( tag => {
   tag.addEventListener('click', function(e){
     const value = e.target.getAttribute('data-id');
-
     input.value = value;
     state.inputValue = value;
   })
 })
 
-// 監聽 Data 輸入的值
-Object.defineProperty(state, 'inputValue',{
+// 監聽滾軸移動到最下面
+window.addEventListener('scroll', function(e){
+  const scrollTop = window.scrollY;
+  const windowHeight = window.innerHeight;
+  const documentHeight = document.documentElement.offsetHeight;
+  if(scrollTop + windowHeight >= documentHeight){
+    state.isLoading = true;
+  } else {
+    state.isLoading = false;
+  }
+})
+
+// 監聽 Loading
+Object.defineProperty(state, 'isLoading', {
   get: function(){
-    return inputValue;
+    return isLoading;
   },
   set: function(value){
-    inputValue = value;
-    
-    let queryString;
-    const option = document.querySelector('#select').options.selectedIndex;
-
-    switch(option){
-      case 0:
-        queryString = '?language=' + value;
-        break;
-
-      case 1:
-        queryString = '?game_id=' + value;
-        break;
-
-      case 2:
-        queryString = '?user_id=' + value;
-        break;
-        
-      default:
-        queryString = '';
-        break;
-    }
-    if(!value) queryString = '';
-    getStreams(queryString);
+    isLoading = value;
+    if(!isLoading) return;
+    showLoading();    
+    addStreams();
+    idx++;
   }
-});
+})
 
 // API
+function initStreams(){
+  let queryString = '?';
+
+  getStreams(queryString, function(streams){
+    streams.forEach(stream => { queryString += '&id=' + stream.user_id})
+
+    getUsers(queryString, function(users){
+      streams.forEach(stream => {
+        users.forEach(user => {
+          if(stream.user_id === user.id){
+            stream.profile_image_url = user.profile_image_url
+            stream.offline_image_url = user.offline_image_url
+          }
+        })
+      })
+      render(streams);
+    });
+  });
+}
+
+function addStreams(){
+  let queryString = `?after=${pages[idx]}`;
+
+  getStreams(queryString, function(streams){
+    streams.forEach(stream => { queryString += '&id=' + stream.user_id})
+
+    getUsers(queryString, function(users){
+      streams.forEach(stream => {
+        users.forEach(user => {
+          if(stream.user_id === user.id){
+            stream.profile_image_url = user.profile_image_url
+            stream.offline_image_url = user.offline_image_url
+          }
+        })
+      })
+      render(streams);
+    });
+  });
+}
+
 function getStreams(queryString, callback){
   const api = 'https://api.twitch.tv/helix/streams';
   const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
@@ -112,10 +157,12 @@ function getStreams(queryString, callback){
   request.send();
   request.onload = function(e){
     const results = JSON.parse(request.response).data;
+    const page = JSON.parse(request.response).pagination.cursor;
+    pages.push(page);
+    console.log(pages, idx);
     callback(results);
   }
 }
-
 function getUsers(queryString, callback){
   const api = 'https://api.twitch.tv/helix/users';
   const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
@@ -131,59 +178,54 @@ function getUsers(queryString, callback){
   }
 }
 
-// 抓取直播列表 -> 抓取所有作者大頭貼
+// 渲染
+function render(datas){
 
-getStreams('?language=zh', function(streams){
-  let queryString = '?';
-  streams.forEach(stream => { queryString += '&id=' + stream.user_id})
-  queryString = queryString.replace('&', '');
-
-  getUsers(queryString, function(users){
-    streams.forEach(stream => {
-      users.forEach(user => {
-        if(stream.user_id === user.id){
-          stream.profile_image_url = user.profile_image_url
-        }
-      })
-    })
-    
-    console.log(streams);
-
-    streams.forEach(function(stream){
-      const container = document.querySelector('#streams');
-      const div = document.createElement('div');
-      div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
-      const thumbnaillURL = stream.thumbnail_url.replace('{width}x{height}', '640x360');
-      const html = `
-      <a href="https://www.twitch.tv/${stream.user_login}" target="_blank">
-        <div class="row">
-          <img class="rounded" src="${thumbnaillURL}" alt="">
+  datas.forEach(function(data){
+    const div = document.createElement('div');
+    div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
+    const thumbnaillURL = data.thumbnail_url.replace('{width}x{height}', '640x360');
+    const html = `
+    <a href="https://www.twitch.tv/${data.user_login}" target="_blank">
+      <div class="row relative md:h-48">
+        <img class="absolute top-0 left-0 right-0 bottom-0 opacity-0 rounded" src="${thumbnaillURL}" onload="this.classList.remove('opacity-0');" alt="">
+        <img class="rounded" src="https://via.placeholder.com/1024x576.jpg" alt="">
+      </div>
+      <div class="flex row rounded items-center space-x-1 bg-gray-800 pr-4 pl-0 py-4">
+        <div class="col relative w-2/12">
+          <img class="w-12 md:w-12 rounded-full mx-auto" src="https://via.placeholder.com/150x150.jpg" alt="">
+          <img class="opacity-0 absolute top-0 left-0 right-0 bottom-0 w-12 md:w-12 rounded-full mx-auto" onload="this.classList.remove('opacity-0');" src="${data.profile_image_url}" alt="">
         </div>
-        <div class="flex row rounded items-center space-x-1 bg-gray-800 pr-4 pl-0 py-4">
-          <div class="col w-2/12">
-            <img class="w-12 md:w-12 rounded-full mx-auto" src="${stream.profile_image_url}" alt="">
-          </div>
-          <div class="space-y-2 w-10/12 col">
-            <p class="truncate text-xl md:text-sm text-gray-100">${stream.title}</p>
-            <div class="text-md md:text-sm text-gray-100 flex justify-between">
-              <span class="text-gray-400">${stream.user_name}</span> 
-              <span class="">
-                <svg class="h-4 w-4 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                </svg>
-                ${stream.viewer_count}
-              </span>
-            </div>
+        <div class="space-y-2 w-10/12 col">
+          <p class="truncate text-xl md:text-sm text-gray-100">${data.title}</p>
+          <div class="text-md md:text-sm text-gray-100 flex justify-between">
+            <span class="text-gray-400">${data.user_name}</span> 
+            <span class="">
+              <svg class="h-4 w-4 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+              </svg>
+              ${data.viewer_count}
+            </span>
           </div>
         </div>
-      </a>
-      `
-      div.innerHTML = html;
-      container.appendChild(div);
-    })
-  });
-});
+      </div>
+    </a>
+    `
+    div.innerHTML = html;
+    container.appendChild(div);
+  })
+  hideLoading();
+}
+
+function showLoading(){
+  loading.classList.remove('hidden');
+}
+
+function hideLoading(){
+  loading.classList.add('hidden');
+}
+
 
 </script>
 </body>
