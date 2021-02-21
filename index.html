@@ -15,7 +15,7 @@
       <div class="w-10/12 md:w-10/12 mx-auto container">
         <h1 class="font-bold text-center text-3xl md:text-5xl mb-4">My Twitch App</h1>
         
-        <div class="mx-auto w-6/12 mb-8 md:mb-0">
+        <div class="mx-auto w-10/12 md:w-6/12 mb-8 md:mb-0">
           <div class="flex">
             <div class="w-full">
               <div class="mt-1 relative rounded-md shadow-sm">
@@ -35,9 +35,9 @@
             <svg class="mr-1 w-5 h-5 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
-            <button class="tag bg-gray-500 rounded px-2 py-1">英雄聯盟</button>
-            <button class="tag bg-gray-500 rounded px-2 py-1">中文</button>
-            <button class="tag bg-gray-500 rounded px-2 py-1">其它</button>
+            <button data-id='lol' class="tag bg-gray-500 rounded px-2 py-1">英雄聯盟</button>
+            <button data-id='zh' class="tag bg-gray-500 rounded px-2 py-1">中文</button>
+            <button data-id='other' class="tag bg-gray-500 rounded px-2 py-1">其它</button>
           </div>
         </div>
         <div id="streams" class="row space-y-16 md:space-y-12 md:flex md:flex-wrap">
@@ -47,29 +47,38 @@
   </main>
 
 <script>
-// UI
-const streams = document.querySelector('#streams');
+// Global Variable
 const input = document.querySelector('#input');
-const search = document.querySelector('#search');
 const tags = document.querySelectorAll('.tag');
-const select = document.querySelector('#select');
-const query = {};
-let queryString = '';
+const bindValue = {};
 
-
+// 監聽輸入 input 事件
 input.addEventListener('keyup', function(e){
-  query.key = this.value;
+  bindValue.inputValue = this.value;
 });
 
+// 監聽點擊標籤事件
+tags.forEach( tag => {
+  tag.addEventListener('click', function(e){
+    const value = e.target.getAttribute('data-id');
 
-Object.defineProperty(query, 'key',{
+    input.value = value;
+    bindValue.inputValue = value;
+  })
+})
+
+// 監聽 Data 輸入的值
+Object.defineProperty(bindValue, 'inputValue',{
   get: function(){
-    return key;
+    return inputValue;
   },
   set: function(value){
-    key = value;
+    inputValue = value;
 
-    switch(select.options.selectedIndex){
+    let queryString;
+
+    const option = document.querySelector('#select').options.selectedIndex;
+    switch(option){
       case 0:
         queryString = '?language=' + value;
         break;
@@ -91,14 +100,12 @@ Object.defineProperty(query, 'key',{
   }
 });
 
-
 // API
-const twitch = 'https://www.twitch.tv/';
-const api = 'https://api.twitch.tv/helix/streams';
-const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
-const appToken = '35spin2autlycym825e63wr6990lzs'; // 註冊之後發 POST 取得 app access token
-
 function ajax(queryString){
+  const api = 'https://api.twitch.tv/helix/streams';
+  const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
+  const appToken = '35spin2autlycym825e63wr6990lzs'; // 註冊之後發 POST 取得 app access token
+
   axios({
     method: 'get',
     url: api + queryString,
@@ -108,13 +115,15 @@ function ajax(queryString){
     }
   })
   .then(function (response) {
-    const streamsData = response.data.data;
-    console.log(streamsData);
+    const streamDatas = response.data.data;
+    const streams = document.querySelector('#streams');
+    const twitch = 'https://www.twitch.tv/';
+    
+    console.log(streamDatas);
     streams.innerHTML = '';
-
-    streamsData.forEach( streamData =>{
-
+    streamDatas.forEach( streamData =>{
       const div = document.createElement('div');
+      
       div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
       const thumbnaillURL = streamData.thumbnail_url.replace('{width}x{height}', '640x360');
       const html = `
@@ -150,8 +159,7 @@ function ajax(queryString){
     console.log(error);
   });
 }
-
-ajax(queryString);
+ajax('');
 
 </script>
 </body>
