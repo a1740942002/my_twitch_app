@@ -50,11 +50,11 @@
 // Global Variable
 const input = document.querySelector('#input');
 const tags = document.querySelectorAll('.tag');
-const bindValue = {};
+const state = {};
 
 // 監聽輸入 input 事件
 input.addEventListener('keyup', function(e){
-  bindValue.inputValue = this.value;
+  state.inputValue = this.value;
 });
 
 // 監聽點擊標籤事件
@@ -63,21 +63,21 @@ tags.forEach( tag => {
     const value = e.target.getAttribute('data-id');
 
     input.value = value;
-    bindValue.inputValue = value;
+    state.inputValue = value;
   })
 })
 
 // 監聽 Data 輸入的值
-Object.defineProperty(bindValue, 'inputValue',{
+Object.defineProperty(state, 'inputValue',{
   get: function(){
     return inputValue;
   },
   set: function(value){
     inputValue = value;
-
+    
     let queryString;
-
     const option = document.querySelector('#select').options.selectedIndex;
+
     switch(option){
       case 0:
         queryString = '?language=' + value;
@@ -101,50 +101,78 @@ Object.defineProperty(bindValue, 'inputValue',{
 });
 
 // API
-function getStreams(queryString){
+function getStreams(queryString, callback){
   const api = 'https://api.twitch.tv/helix/streams';
   const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
   const appToken = '35spin2autlycym825e63wr6990lzs'; // 註冊之後發 POST 取得 app access token
+  const request = new XMLHttpRequest();
+  request.open('GET', api + queryString, true);
+  request.setRequestHeader('Authorization', 'Bearer ' + appToken);
+  request.setRequestHeader('Client-Id', clientID);
+  request.send();
+  request.onload = function(e){
+    const results = JSON.parse(request.response).data;
+    callback(results);
+  }
+}
 
-  axios({
-    method: 'get',
-    url: api + queryString,
-    headers:{
-      Authorization: 'Bearer ' + appToken,
-      'Client-Id':  clientID
-    }
-  })
-  .then(function (response) {
-    const streamDatas = response.data.data;
-    const streams = document.querySelector('#streams');
-    const twitch = 'https://www.twitch.tv/';
+function getUsers(queryString, callback){
+  const api = 'https://api.twitch.tv/helix/users';
+  const clientID = 'kfwda6tzypba70e78x0fbntpnm59fc'; // Twitch 官網註冊
+  const appToken = '35spin2autlycym825e63wr6990lzs'; // 註冊之後發 POST 取得 app access token
+  const request = new XMLHttpRequest();
+  request.open('GET', api + queryString, true);
+  request.setRequestHeader('Authorization', 'Bearer ' + appToken);
+  request.setRequestHeader('Client-Id', clientID);
+  request.send();
+  request.onload = function(e){
+    const results = JSON.parse(request.response).data;
+    callback(results);
+  }
+}
+
+// 抓取直播列表 -> 抓取所有作者大頭貼
+
+getStreams('?language=zh', function(streams){
+  let queryString = '?';
+  streams.forEach(stream => { queryString += '&id=' + stream.user_id})
+  queryString = queryString.replace('&', '');
+
+  getUsers(queryString, function(users){
+    streams.forEach(stream => {
+      users.forEach(user => {
+        if(stream.user_id === user.id){
+          stream.profile_image_url = user.profile_image_url
+        }
+      })
+    })
     
-    console.log(streamDatas);
-    streams.innerHTML = '';
-    streamDatas.forEach( streamData =>{
+    console.log(streams);
+
+    streams.forEach(function(stream){
+      const container = document.querySelector('#streams');
       const div = document.createElement('div');
-      
       div.classList.add('block','col', 'md:px-4', 'md:mt-12', 'md:w-4/12', 'transition', 'duration-500', 'ease-in-out', 'transform', 'hover:-translate-y-1', 'hover:scale-105');
-      const thumbnaillURL = streamData.thumbnail_url.replace('{width}x{height}', '640x360');
+      const thumbnaillURL = stream.thumbnail_url.replace('{width}x{height}', '640x360');
       const html = `
-      <a href="${ twitch + streamData.user_login}" target="_blank">
+      <a href="https://www.twitch.tv/${stream.user_login}" target="_blank">
         <div class="row">
           <img class="rounded" src="${thumbnaillURL}" alt="">
         </div>
         <div class="flex row rounded items-center space-x-1 bg-gray-800 pr-4 pl-0 py-4">
           <div class="col w-2/12">
-            <img class="w-12 md:w-8 rounded-full mx-auto" src="https://via.placeholder.com/150x150.png" alt="">
+            <img class="w-12 md:w-12 rounded-full mx-auto" src="${stream.profile_image_url}" alt="">
           </div>
           <div class="space-y-2 w-10/12 col">
-            <p class="truncate text-xl md:text-sm text-gray-100">${streamData.title}</p>
+            <p class="truncate text-xl md:text-sm text-gray-100">${stream.title}</p>
             <div class="text-md md:text-sm text-gray-100 flex justify-between">
-              <span class="text-gray-400">${streamData.user_name}</span> 
+              <span class="text-gray-400">${stream.user_name}</span> 
               <span class="">
                 <svg class="h-4 w-4 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                   <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                 </svg>
-                ${streamData.viewer_count}
+                ${stream.viewer_count}
               </span>
             </div>
           </div>
@@ -152,14 +180,10 @@ function getStreams(queryString){
       </a>
       `
       div.innerHTML = html;
-      streams.appendChild(div);
+      container.appendChild(div);
     })
-  })
-  .catch(function (error) {
-    console.log(error);
   });
-}
-getStreams('');
+});
 
 </script>
 </body>
