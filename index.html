@@ -26,29 +26,28 @@ const pages = [];
 
 initStreams();
 
-// 監聽滾軸移動到最下面
+// 監聽滾軸到底部
 window.addEventListener('scroll', function(e){
   const scrollTop = window.scrollY;
   const windowHeight = window.innerHeight;
   const documentHeight = document.documentElement.offsetHeight;
-  console.log(scrollTop, windowHeight, documentHeight);
   if(scrollTop + windowHeight + 1 >= documentHeight){
-    state.isLoading = true;
+    state.isBottom = true;
   } else {
-    state.isLoading = false;
+    state.isBottom = false;
   }
 })
 
-// 監聽 Loading
-Object.defineProperty(state, 'isLoading', {
+// 無限滾軸
+Object.defineProperty(state, 'isBottom', {
   get: function(){
-    return isLoading;
+    return isBottom;
   },
   set: function(value){
-    isLoading = value;
-    if(!isLoading) return;
+    isBottom = value;
+    if(!isBottom) return;
+    // 當到底部時，新增新的 Streams
     addStreams();
-    console.log(pages, pages.length);
   }
 })
 
