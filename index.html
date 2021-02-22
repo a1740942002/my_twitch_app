@@ -24,7 +24,6 @@ const container = document.querySelector('#streams');
 const state = {};
 const pages = [];
 
-initStreams();
 
 // 監聽滾軸到底部
 window.addEventListener('scroll', function(e){
@@ -51,7 +50,8 @@ Object.defineProperty(state, 'isBottom', {
   }
 })
 
-// API
+
+// 新建 Stream
 function initStreams(){
   let queryString = '?language=zh';
 
@@ -91,6 +91,9 @@ function addStreams(){
     });
   });
 }
+
+
+// API
 
 function getStreams(queryString, callback){
   const api = 'https://api.twitch.tv/helix/streams';
@@ -162,6 +165,9 @@ function render(datas){
   })
 }
 
+
+// 初始化
+initStreams();
 
 </script>
 </body>
